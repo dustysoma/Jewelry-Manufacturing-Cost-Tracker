@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import Session, select
 
 from .db import init_db, get_session
-from .models import Order, Piece, LineItem, MetalPriceSnapshot, RateCard
+from .models import Order, Piece, LineItem, MetalPriceSnapshot, RateCard, Job
 from .settings import settings
 from .metal_prices import get_metals_per_gram, alloy_factor
 
@@ -25,7 +25,10 @@ def health():
 @app.get("/api/metals/live")
 async def metals_live(currency: str | None = None):
     currency = currency or settings.BASE_CURRENCY
-    data = await get_metals_per_gram(currency=currency)
+    try:
+        data = await get_metals_per_gram(currency=currency)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
     m = data.get("metals", {})
     return {
         "currency": data.get("currency", currency),
@@ -38,7 +41,10 @@ async def metals_live(currency: str | None = None):
 @app.post("/api/metals/snapshot")
 async def metals_snapshot(session: Session = Depends(get_session), currency: str | None = None):
     currency = currency or settings.BASE_CURRENCY
-    data = await get_metals_per_gram(currency=currency)
+    try:
+        data = await get_metals_per_gram(currency=currency)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
     m = data.get("metals", {})
     snap = MetalPriceSnapshot(
         currency=data.get("currency", currency),
@@ -49,6 +55,13 @@ async def metals_snapshot(session: Session = Depends(get_session), currency: str
     session.add(snap)
     session.commit()
     session.refresh(snap)
+    # Force-refresh in-memory metals cache so subsequent GETs return fresh data
+    try:
+        await get_metals_per_gram(settings.BASE_CURRENCY, cache_seconds=0)
+    except Exception:
+        # don't fail the snapshot if cache refresh has an issue
+        pass
+
     return snap
 
 @app.get("/api/metals/snapshots")
@@ -262,6 +275,72 @@ def piece_summary(
         "metal_breakdown": metal_breakdown,
         "line_items": items,
     }
+
+
+# ---------- Jobs (persisted) ----------
+@app.post("/api/jobs")
+def create_job(piece_id: int, snapshot_id: int | None = None, notes: str | None = None, external_invoice_id: str | None = None, session: Session = Depends(get_session)):
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(status_code=404, detail="piece not found")
+
+    # compute summary using current DB values
+    items = session.exec(select(LineItem).where(LineItem.piece_id == piece_id)).all()
+    items_total = sum(i.qty * i.unit_cost for i in items)
+
+    metal_cost = 0.0
+    if snapshot_id and piece.metal and piece.alloy and piece.finished_weight_g:
+        snap = session.get(MetalPriceSnapshot, snapshot_id)
+        if snap:
+            metal = piece.metal.upper()
+            spot = snap.gold_per_g if metal == "GOLD" else snap.silver_per_g if metal == "SILVER" else snap.platinum_per_g
+            factor = alloy_factor(metal, piece.alloy)
+            shop_cost_per_g = (spot * factor)
+            adjusted_weight = piece.finished_weight_g * (1.0 + piece.loss_pct)
+            metal_cost = adjusted_weight * shop_cost_per_g
+
+    total_cost = items_total + metal_cost
+
+    from .models import Job
+    job = Job(order_id=piece.order_id, piece_id=piece.id, line_items_total=items_total, metal_cost=metal_cost, total_cost=total_cost, notes=notes, external_invoice_id=external_invoice_id)
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    return job
+
+
+@app.get("/api/jobs")
+def list_jobs(session: Session = Depends(get_session)):
+    return session.exec(select(Job).order_by(Job.id.desc())).all()
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: int, session: Session = Depends(get_session)):
+    j = session.get(Job, job_id)
+    if not j:
+        raise HTTPException(status_code=404, detail="job not found")
+    return j
+
+
+@app.get("/api/jobs-with-orders")
+def jobs_with_orders(session: Session = Depends(get_session)):
+    """Returns jobs with client_name and piece info for UI display"""
+    jobs = session.exec(select(Job).order_by(Job.created_at.desc())).all()
+    result = []
+    for job in jobs:
+        order = session.get(Order, job.order_id) if job.order_id else None
+        piece = session.get(Piece, job.piece_id) if job.piece_id else None
+        result.append({
+            "id": job.id,
+            "client_name": order.client_name if order else "(unknown)",
+            "piece_name": piece.name if piece else "(unknown)",
+            "created_at": job.created_at,
+            "total_cost": job.total_cost,
+            "notes": job.notes,
+            "line_items_total": job.line_items_total,
+            "metal_cost": job.metal_cost,
+        })
+    return result
 
 
 from fastapi.responses import HTMLResponse

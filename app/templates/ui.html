@@ -20,6 +20,12 @@
 <body>
   <h2 style="margin:0 0 12px;">Jewelry Manufacturing</h2>
 
+  <div style="margin-bottom:12px;">
+    <button style="margin-right:8px; width:auto; padding:8px 16px;" onclick="showSection('editor')">Editor</button>
+    <button style="width:auto; padding:8px 16px;" onclick="loadJobsIndex()">Saved Jobs</button>
+  </div>
+
+  <div id="editorSection" style="display:block;">
   <div class="card">
     <h3 style="margin:0 0 10px;">1) Order</h3>
     <div class="row">
@@ -242,12 +248,84 @@
     </div>
   </div>
 
+  <div style="margin-top:12px;">
+    <label>Job notes (optional)</label>
+    <div class="row">
+      <input class="half" id="jobNotes" placeholder="Notes for invoice or expenses">
+      <div class="half" style="display:flex; align-items:flex-end;">
+        <button onclick="saveJob()">Save Job</button>
+      </div>
+    </div>
+  </div>
+
   <div class="mono" id="summary" style="margin-top:12px;"></div>
 </div>
+  </div><!-- end editorSection -->
+
+  <div id="jobsSection" style="display:none;">
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Saved Jobs Index</h3>
+      <div id="jobsIndex" style="margin-top:12px;">Loading...</div>
+    </div>
+  </div><!-- end jobsSection -->
 
 
 <script>
   let rateCardsCache = [];
+  
+  // Save job UI helpers
+  function jobNotes(){ const el = sel('jobNotes'); return el ? el.value.trim() : ''; }
+
+  function showSection(section){
+    const editor = sel('editorSection');
+    const jobs = sel('jobsSection');
+    if (section === 'editor'){
+      if (editor) editor.style.display = 'block';
+      if (jobs) jobs.style.display = 'none';
+    } else if (section === 'jobs'){
+      if (editor) editor.style.display = 'none';
+      if (jobs) jobs.style.display = 'block';
+    }
+  }
+
+  async function loadJobsIndex(){
+    showSection('jobs');
+    const r = await fetch(api('/api/jobs-with-orders'));
+    const jobs = await r.json();
+
+    // Group by client_name
+    const byClient = {};
+    for (const job of jobs){
+      if (!byClient[job.client_name]) byClient[job.client_name] = [];
+      byClient[job.client_name].push(job);
+    }
+
+    // Render
+    let html = '';
+    for (const client of Object.keys(byClient).sort()){
+      const clientJobs = byClient[client];
+      html += `<h4 style="margin:12px 0 8px; font-weight:600;">${client}</h4>`;
+      for (const job of clientJobs){
+        const date = new Date(job.created_at).toLocaleDateString();
+        html += `
+          <div style="padding:8px; margin:4px 0; border:1px solid #eee; border-radius:6px; background:#fafafa;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <strong>${job.piece_name}</strong> — $${job.total_cost.toFixed(2)} on ${date}
+                <div style="font-size:12px; opacity:0.7; margin-top:4px;">${job.notes || '(no notes)'}</div>
+              </div>
+              <div style="font-size:12px; text-align:right;">
+                ID: ${job.id}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const jobsEl = sel('jobsIndex');
+    if (jobsEl) jobsEl.innerHTML = html || '(no saved jobs)';
+  }
 
   const api = (path) => location.origin + path;
 
@@ -375,6 +453,22 @@
     const snap = await r.json();
     sel('snapshotId').value = snap.id;
     await refreshSummary();
+  }
+
+  async function saveJob(){
+    const pid = currentPieceId();
+    if (!pid) return alert('Select a piece first');
+    const snap = sel('snapshotId').value || '';
+    const notes = jobNotes();
+
+    const params = new URLSearchParams({ piece_id: pid.toString() });
+    if (snap) params.set('snapshot_id', snap);
+    if (notes) params.set('notes', notes);
+
+    const r = await fetch(api('/api/jobs?' + params.toString()), { method: 'POST' });
+    if (!r.ok) return alert('Error saving job: ' + r.status);
+    const job = await r.json();
+    alert('Job saved (id ' + job.id + ')');
   }
 
   async function loadRateCards(){
