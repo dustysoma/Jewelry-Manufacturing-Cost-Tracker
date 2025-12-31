@@ -1,0 +1,530 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jewelry MFG</title>
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARERERAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"">
+  <style>
+    body{font-family:system-ui; margin:0; padding:16px; background:#f6f6f7;}
+    .card{background:#fff; border-radius:14px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:12px;}
+    .row{display:flex; gap:10px; flex-wrap:wrap;}
+    label{font-size:12px; opacity:.7;}
+    input,select,button{font-size:16px; padding:10px; border-radius:10px; border:1px solid #ddd; width:100%; box-sizing:border-box;}
+    button{border:none; background:#111; color:#fff; font-weight:600;}
+    button.secondary{background:#e9e9ee; color:#111;}
+    .half{flex:1; min-width:160px;}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; white-space:pre-wrap;}
+    .total{font-size:20px; font-weight:800;}
+  </style>
+</head>
+<body>
+  <h2 style="margin:0 0 12px;">Jewelry Manufacturing</h2>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;">1) Order</h3>
+    <div class="row">
+      <div class="half">
+        <label>Existing Orders</label>
+        <select id="orderSelect"></select>
+      </div>
+      <div class="half">
+        <label>New Order (client name)</label>
+        <input id="newOrderName" placeholder="Walk-in / John Smith / etc">
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button onclick="createOrder()">Create Order</button>
+      <button class="secondary" onclick="loadOrders()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;">2) Piece</h3>
+    <div class="row">
+      <div class="half">
+        <label>Pieces for selected order</label>
+        <select id="pieceSelect"></select>
+      </div>
+      <div class="half">
+        <label>New Piece name</label>
+        <input id="newPieceName" placeholder="Ruby Signet Ring - Size 5">
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button onclick="createPiece()">Create Piece</button>
+      <button class="secondary" onclick="loadPieces()">Refresh Pieces</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;">3) Specs + Metal Pricing</h3>
+    <div class="row">
+      <div class="half">
+        <label>Metal</label>
+        <select id="metal">
+          <option value="">(select)</option>
+          <option>GOLD</option>
+          <option>SILVER</option>
+          <option>PLATINUM</option>
+        </select>
+      </div>
+      <div class="half">
+        <label>Alloy</label>
+        <select id="alloy">
+          <option value="">(select)</option>
+          <option>10K</option><option>14K</option><option>18K</option>
+          <option>925</option>
+          <option>PT950</option>
+        </select>
+      </div>
+      <div class="half">
+        <label>Finished weight (g)</label>
+        <input id="weight" type="number" step="0.01" placeholder="e.g. 8.50">
+      </div>
+      <div class="half">
+        <label>Loss % (e.g. 7 for 7%)</label>
+        <input id="loss" type="number" step="0.1" placeholder="e.g. 7">
+      </div>
+      <div class="half">
+        <label>Premium per g (your shop)</label>
+        <input id="premium" type="number" step="0.01" placeholder="e.g. 1.50">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <button onclick="savePiece()">Save Specs</button>
+      <button class="secondary" onclick="snapshotMetals()">Snapshot Metals</button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div><label>Snapshot ID</label></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;">3b) Manage Rate Cards</h3>
+    <div style="margin-bottom:12px; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
+      <h4 style="margin:0 0 10px;">Create New Rate Card</h4>
+      <div class="row">
+        <div class="half">
+          <label>Category</label>
+          <select id="newRateCat">
+            <option>SETTING</option>
+            <option>STONE</option>
+            <option>POLISH</option>
+            <option>PLATING</option>
+            <option>ENGRAVING</option>
+            <option>ENAMEL</option>
+            <option>INLAY</option>
+            <option>CAD</option>
+            <option>PRINT</option>
+            <option>MISC</option>
+          </select>
+        </div>
+        <div class="half">
+          <label>Name (e.g. Prong Setting, Rhodium Plating)</label>
+          <input id="newRateName" placeholder="Descriptive name">
+        </div>
+        <div class="half">
+          <label>Unit Type (stone, job, piece, gram, hour, etc.)</label>
+          <input id="newRateUnit" placeholder="e.g. stone, job, piece">
+        </div>
+        <div class="half">
+          <label>Unit Cost ($)</label>
+          <input id="newRateCost" type="number" step="0.01" placeholder="e.g. 15.50">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button onclick="createRateCard()">Add Rate Card</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;">4) Add Costs (Rate Cards)</h3>
+    <div class="row">
+      <div class="half">
+        <label>Category</label>
+        <select id="rateCategory" onchange="loadRateCards()">
+          <option value="">(all)</option>
+          <option>SETTING</option>
+          <option>STONE</option>
+          <option>POLISH</option>
+          <option>PLATING</option>
+          <option>ENGRAVING</option>
+          <option>ENAMEL</option>
+          <option>INLAY</option>
+          <option>CAD</option>
+          <option>PRINT</option>
+          <option>MISC</option>
+        </select>
+      </div>
+      <div class="half">
+        <label>Rate Card</label>
+        <select id="rateCardSelect"></select>
+      </div>
+      <div class="half">
+        <label>Qty</label>
+        <input id="rateQty" type="number" step="1" value="1">
+        <div class="half">
+  <label>Unit price (from rate card)</label>
+  <input id="unitPrice" readonly>
+</div>
+<div class="half">
+  <label>Override unit price (optional)</label>
+  <input id="overrideUnitPrice" type="number" step="0.01" placeholder="leave blank to use rate card">
+</div>
+<div class="half">
+  <label>Line total (qty × unit price)</label>
+  <input id="lineTotal" readonly>
+</div>
+
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button onclick="addFromRateCard()">Add to Piece</button>
+      <button class="secondary" onclick="refreshSummary()">Refresh Summary</button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <label>Manual line item (for Ruby cost, special cases, etc.)</label>
+      <div class="row">
+        <input class="half" id="mCat" placeholder="Category (STONE/MISC/etc)">
+        <input class="half" id="mName" placeholder="Name (Ruby 5mm, etc)">
+        <input class="half" id="mUnit" placeholder="Unit (stone/job/carat)">
+        <input class="half" id="mQty" type="number" step="1" value="1">
+        <input class="half" id="mCost" type="number" step="0.01" placeholder="Unit cost">
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" onclick="addManual()">Add Manual Item</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
+      <h4 style="margin:0 0 10px;\">Line Items (Costs Added)</h4>
+      <div id="lineItemsList" style="max-height:250px; overflow-y:auto; border:1px solid #ddd; border-radius:8px; padding:8px; font-size:13px; font-family:ui-monospace, monospace;">
+        (none yet)
+      </div>
+    </div>
+  </div>
+
+<div class="card">
+  <h3 style="margin:0 0 10px;\">5) Totals</h3>
+  <div class="total" id="totalCost">$0.00</div>
+
+  <div style="margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px;">
+    <h3 style="margin:0 0 10px;\">Quote</h3>
+    <div class="row\">
+      <div class="half">
+        <label>CAD cost</label>
+        <input id="cadCost" readonly>
+      </div>
+      <div class="half">
+        <label>CAD price (200% markup → ×3)</label>
+        <input id="cadPrice" readonly>
+      </div>
+      <div class="half">
+        <label>Other costs (setting/stones/finish/etc.)</label>
+        <input id="otherCost" readonly>
+      </div>
+      <div class="half">
+        <label>Other price (50% markup → ×1.5)</label>
+        <input id="otherPrice" readonly>
+      </div>
+      <div class="half">
+        <label>Metal (no markup)</label>
+        <input id="metalCostBox" readonly>
+      </div>
+      <div class="half">
+        <label>Quote total</label>
+        <input id="quoteTotal" readonly>
+      </div>
+    </div>
+  </div>
+
+  <div class="mono" id="summary" style="margin-top:12px;"></div>
+</div>
+
+
+<script>
+  let rateCardsCache = [];
+
+  const api = (path) => location.origin + path;
+
+  function sel(id){ return document.getElementById(id); }
+  function currentOrderId(){ return parseInt(sel('orderSelect').value || '0'); }
+  function currentPieceId(){ return parseInt(sel('pieceSelect').value || '0'); }
+
+  async function loadOrders(){
+    const r = await fetch(api('/api/orders'));
+    const data = await r.json();
+    sel('orderSelect').innerHTML = data.map(o => `<option value="${o.id}">#${o.id} — ${o.client_name}</option>`).join('');
+    if (data.length) await loadPieces();
+  }
+
+  async function createOrder(){
+    const name = sel('newOrderName').value.trim() || 'Walk-in';
+    const r = await fetch(api('/api/orders?client_name=' + encodeURIComponent(name)), {method:'POST'});
+    await r.json();
+    sel('newOrderName').value = '';
+    await loadOrders();
+  }
+
+  async function createRateCard(){
+    const cat = sel('newRateCat').value.trim();
+    const name = sel('newRateName').value.trim();
+    const unit = sel('newRateUnit').value.trim();
+    const cost = sel('newRateCost').value;
+
+    if (!cat || !name || !unit || cost === '') return alert('Fill all rate card fields');
+
+    const params = new URLSearchParams({category:cat, name:name, unit_type:unit, unit_cost:cost});
+    const r = await fetch(api(`/api/rate-cards?` + params.toString()), {method:'POST'});
+    
+    if (!r.ok) return alert('Error: ' + r.status + ' ' + r.statusText);
+    
+    await r.json();
+    sel('newRateName').value = ''; sel('newRateUnit').value=''; sel('newRateCost').value='';
+    await loadRateCards();
+  }
+
+  async function loadPieces(){
+    const oid = currentOrderId();
+    if (!oid) return;
+    const r = await fetch(api(`/api/orders/${oid}/pieces`));
+    const data = await r.json();
+    sel('pieceSelect').innerHTML = data.map(p => `<option value="${p.id}">#${p.id} — ${p.name}</option>`).join('');
+    if (data.length) await loadPieceIntoForm();
+  }
+
+  async function refreshLineItemsList(){
+    const pid = currentPieceId();
+    if (!pid) return;
+    const r = await fetch(api(`/api/pieces/${pid}/line-items`));
+    const items = await r.json();
+
+    const listEl = sel('lineItemsList');
+    if (!listEl) return;
+
+    if (!items || items.length === 0) {
+      listEl.innerHTML = '(none yet)';
+      return;
+    }
+
+    listEl.innerHTML = items.map(li => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+        <span><strong>${li.category}</strong> — ${li.name} (${li.qty}x $${li.unit_cost} = $${(li.qty * li.unit_cost).toFixed(2)})</span>
+        <button style="padding:4px 8px; font-size:12px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="deleteLineItem(${li.id})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  async function deleteLineItem(liId){
+    if (!confirm('Remove this cost?')) return;
+    const r = await fetch(api(`/api/line-items/${liId}`), {method:'DELETE'});
+    if (!r.ok) return alert('Error deleting: ' + r.status);
+    await refreshLineItemsList();
+    await refreshSummary();
+  }
+
+  async function createPiece(){
+    const oid = currentOrderId();
+    if (!oid) return alert('Select an order first');
+    const name = sel('newPieceName').value.trim() || 'Piece';
+    const r = await fetch(api(`/api/orders/${oid}/pieces?name=` + encodeURIComponent(name)), {method:'POST'});
+    await r.json();
+    sel('newPieceName').value = '';
+    await loadPieces();
+  }
+
+  async function loadPieceIntoForm(){
+    const pid = currentPieceId();
+    if (!pid) return;
+    const r = await fetch(api(`/api/pieces/${pid}`));
+    const p = await r.json();
+    sel('metal').value = p.metal || '';
+    sel('alloy').value = p.alloy || '';
+    sel('weight').value = p.finished_weight_g ?? '';
+    sel('loss').value = (p.loss_pct ?? 0) * 100;
+    await refreshLineItemsList();
+    await refreshSummary();
+  }
+
+  async function savePiece(){
+    const pid = currentPieceId();
+    if (!pid) return alert('Select a piece first');
+
+    const metal = sel('metal').value;
+    const alloy = sel('alloy').value;
+    const weight = sel('weight').value;
+    const lossPct = sel('loss').value;
+
+    const params = new URLSearchParams();
+    if (metal) params.set('metal', metal);
+    if (alloy) params.set('alloy', alloy);
+    if (weight !== '') params.set('finished_weight_g', weight);
+    if (lossPct !== '') params.set('loss_pct', (parseFloat(lossPct)/100).toString());
+
+    const r = await fetch(api(`/api/pieces/${pid}?` + params.toString()), {method:'PATCH'});
+    await r.json();
+    await refreshSummary();
+  }
+
+  async function snapshotMetals(){
+    const r = await fetch(api('/api/metals/snapshot'), {method:'POST'});
+    const snap = await r.json();
+    sel('snapshotId').value = snap.id;
+    await refreshSummary();
+  }
+
+  async function loadRateCards(){
+  const cat = sel('rateCategory').value;
+  const url = cat ? `/api/rate-cards?category=${encodeURIComponent(cat)}` : '/api/rate-cards';
+  const r = await fetch(api(url));
+  const data = await r.json();
+  rateCardsCache = data;
+
+  sel('rateCardSelect').innerHTML = data.map(rc =>
+    `<option value="${rc.id}">${rc.category} — ${rc.name} ($${rc.unit_cost}/${rc.unit_type})</option>`
+  ).join('');
+
+  updateRateCardPricePreview();
+}
+
+function updateRateCardPricePreview(){
+  const rateId = parseInt(sel('rateCardSelect').value || '0');
+  const qty = parseFloat(sel('rateQty').value || '1');
+  const override = sel('overrideUnitPrice').value;
+
+  const rc = rateCardsCache.find(x => x.id === rateId);
+  if (!rc) {
+    sel('unitPrice').value = '';
+    sel('lineTotal').value = '';
+    return;
+  }
+
+  const unit = (override !== '' ? parseFloat(override) : rc.unit_cost) || 0;
+  sel('unitPrice').value = unit.toFixed(2);
+  sel('lineTotal').value = (unit * qty).toFixed(2);
+}
+
+
+  async function addFromRateCard(){
+  const pid = currentPieceId();
+  if (!pid) return alert('Select a piece first');
+
+  const rateId = parseInt(sel('rateCardSelect').value || '0');
+  if (!rateId) return alert('Select a rate card first');
+  
+  const qty = sel('rateQty').value || 1;
+
+  const override = sel('overrideUnitPrice').value;
+  const extra = override !== '' ? `&unit_cost_override=${encodeURIComponent(override)}` : '';
+
+  const r = await fetch(api(`/api/pieces/${pid}/line-items/from-rate-card?rate_card_id=${rateId}&qty=${qty}${extra}`), {method:'POST'});
+  if (!r.ok) return alert('Error: ' + r.status + ' ' + r.statusText);
+  await r.json();
+
+  sel('overrideUnitPrice').value = '';
+  updateRateCardPricePreview();
+  await refreshLineItemsList();
+  await refreshSummary();
+}
+
+
+  async function addManual(){
+    const pid = currentPieceId();
+    if (!pid) return alert('Select a piece first');
+
+    const cat = sel('mCat').value.trim();
+    const name = sel('mName').value.trim();
+    const unit = sel('mUnit').value.trim();
+    const qty = sel('mQty').value || 1;
+    const cost = sel('mCost').value || 0;
+
+    if (!cat || !name || !unit) return alert('Fill category, name, unit');
+
+    const params = new URLSearchParams({category:cat, name:name, unit_type:unit, qty:qty, unit_cost:cost});
+    const r = await fetch(api(`/api/pieces/${pid}/line-items?` + params.toString()), {method:'POST'});
+    await r.json();
+
+    sel('mCat').value = ''; sel('mName').value=''; sel('mUnit').value=''; sel('mQty').value=1; sel('mCost').value='';
+    await refreshLineItemsList();
+    await refreshSummary();
+  }
+
+  async function refreshSummary(){
+    const pid = currentPieceId();
+    if (!pid) return;
+
+    const snapEl = sel('snapshotId');
+    const premiumEl = sel('premium');
+    const snap = snapEl ? snapEl.value : '';
+    const premium = premiumEl ? (premiumEl.value || 0) : 0;
+
+    let url = `/api/pieces/${pid}/summary`;
+    const params = new URLSearchParams();
+    if (snap) params.set('snapshot_id', snap);
+    if (premium) params.set('premium_per_g', premium);
+    if ([...params].length) url += `?${params.toString()}`;
+
+    const r = await fetch(api(url));
+    const data = await r.json();
+
+    const total = data.total_cost ?? 0;
+    const totalCostEl = sel('totalCost');
+    const summaryEl = sel('summary');
+    if (totalCostEl) totalCostEl.textContent = `$${total.toFixed(2)}`;
+    if (summaryEl) summaryEl.textContent = JSON.stringify(data, null, 2);
+    updateQuoteBox(data);
+
+  }
+function updateQuoteBox(summary){
+  const metalCost = Number(summary.metal_cost || 0);
+
+  const items = summary.line_items || [];
+  let cadCost = 0;
+  let otherCost = 0;
+
+  for (const li of items){
+    const lineTotal = (Number(li.qty || 0) * Number(li.unit_cost || 0));
+    const cat = String(li.category || '').toUpperCase();
+
+    if (cat === 'CAD') cadCost += lineTotal;
+    else otherCost += lineTotal;
+  }
+
+  const cadPrice = cadCost * 3.0;       // 200% markup
+  const otherPrice = otherCost * 1.5;   // 50% markup
+  const quoteTotal = metalCost + cadPrice + otherPrice;
+
+  const cadCostEl = sel('cadCost');
+  const cadPriceEl = sel('cadPrice');
+  const otherCostEl = sel('otherCost');
+  const otherPriceEl = sel('otherPrice');
+  const metalCostBoxEl = sel('metalCostBox');
+  const quoteTotalEl = sel('quoteTotal');
+  
+  if (cadCostEl) cadCostEl.value = cadCost.toFixed(2);
+  if (cadPriceEl) cadPriceEl.value = cadPrice.toFixed(2);
+  if (otherCostEl) otherCostEl.value = otherCost.toFixed(2);
+  if (otherPriceEl) otherPriceEl.value = otherPrice.toFixed(2);
+  if (metalCostBoxEl) metalCostBoxEl.value = metalCost.toFixed(2);
+  if (quoteTotalEl) quoteTotalEl.value = quoteTotal.toFixed(2);
+}
+
+  sel('orderSelect').addEventListener('change', loadPieces);
+  sel('pieceSelect').addEventListener('change', loadPieceIntoForm);
+sel('rateCardSelect').addEventListener('change', updateRateCardPricePreview);
+sel('rateQty').addEventListener('input', updateRateCardPricePreview);
+sel('overrideUnitPrice').addEventListener('input', updateRateCardPricePreview);
+
+  // init
+  (async function(){
+    await loadOrders();
+    await loadRateCards();
+  })();
+</script>
+
+</body>
+</html>
