@@ -32,6 +32,17 @@ def home():
 def health():
     return {"ok": True}
 
+@app.post("/api/migrate")
+def run_migrations(session: Session = Depends(get_session)):
+    """Run database migrations - adds missing columns"""
+    try:
+        # Add image_data column to piece table if it doesn't exist
+        session.exec("ALTER TABLE piece ADD COLUMN IF NOT EXISTS image_data TEXT")
+        session.commit()
+        return {"ok": True, "message": "Migrations completed"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 # ---------- Metals ----------
 @app.get("/api/metals/live")
 async def metals_live(currency: str | None = None):
