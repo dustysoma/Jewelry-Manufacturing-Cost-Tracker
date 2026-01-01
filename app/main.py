@@ -1,6 +1,7 @@
 from datetime import datetime, time as dtime, timedelta
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import Session, select
+from sqlalchemy import text
 import logging
 
 from .db import init_db, get_session
@@ -37,7 +38,7 @@ def run_migrations(session: Session = Depends(get_session)):
     """Run database migrations - adds missing columns"""
     try:
         # Add image_data column to piece table if it doesn't exist
-        session.exec("ALTER TABLE piece ADD COLUMN IF NOT EXISTS image_data TEXT")
+        session.exec(text("ALTER TABLE piece ADD COLUMN IF NOT EXISTS image_data TEXT"))
         session.commit()
         return {"ok": True, "message": "Migrations completed"}
     except Exception as e:
