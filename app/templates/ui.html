@@ -323,8 +323,37 @@
 
   async function ensureEditorLoaded(){
     // Load orders/pieces/rate cards when opening editor
+    clearEditor();
     await loadOrders();
     await loadRateCards();
+  }
+
+  function clearEditor(){
+    // Clear all form fields
+    sel('imageInput').value = '';
+    sel('imagePreview').style.display = 'none';
+    sel('orderSelect').value = '';
+    sel('newOrderName').value = '';
+    sel('pieceSelect').value = '';
+    sel('newPieceName').value = '';
+    sel('metal').value = '';
+    sel('alloy').value = '';
+    sel('finishedWeight').value = '';
+    sel('lossPercent').value = '0';
+    sel('premium').value = '';
+    sel('snapshotId').value = '';
+    sel('rateCategory').value = '';
+    sel('rateCardSelect').value = '';
+    sel('rateQty').value = '1';
+    sel('unitPrice').value = '';
+    sel('overrideUnitPrice').value = '';
+    sel('lineTotal').value = '';
+    sel('jobNotes').value = '';
+    sel('lineItemsTable').innerHTML = '';
+    sel('totalLineItems').textContent = '$0.00';
+    sel('metalCostDisplay').textContent = '$0.00';
+    sel('totalCostDisplay').textContent = '$0.00';
+    currentJobId = null;
   }
 
   async function loadRateCardsSection(){
