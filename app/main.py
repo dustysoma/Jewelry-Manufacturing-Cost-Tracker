@@ -354,6 +354,34 @@ def jobs_with_orders(session: Session = Depends(get_session)):
     return result
 
 
+@app.patch("/api/jobs/{job_id}")
+def update_job(job_id: int, notes: str | None = None, external_invoice_id: str | None = None, session: Session = Depends(get_session)):
+    j = session.get(Job, job_id)
+    if not j:
+        raise HTTPException(status_code=404, detail="job not found")
+    
+    # Recalculate totals from current piece state
+    piece = session.get(Piece, j.piece_id) if j.piece_id else None
+    if piece:
+        items = session.exec(select(LineItem).where(LineItem.piece_id == j.piece_id)).all()
+        items_total = sum(i.qty * i.unit_cost for i in items)
+        j.line_items_total = items_total
+        
+        # Recalculate metal cost if snapshot exists
+        # For now, keep existing metal_cost; could recalculate if needed
+        j.total_cost = items_total + j.metal_cost
+    
+    if notes is not None:
+        j.notes = notes
+    if external_invoice_id is not None:
+        j.external_invoice_id = external_invoice_id
+    
+    session.add(j)
+    session.commit()
+    session.refresh(j)
+    return j
+
+
 @app.delete("/api/jobs/{job_id}")
 def delete_job(job_id: int, session: Session = Depends(get_session)):
     j = session.get(Job, job_id)
