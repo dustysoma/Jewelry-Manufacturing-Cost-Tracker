@@ -136,4 +136,3 @@ def create_invoice(contact_id: str, line_items: List[Dict[str, Any]], reference_
 
     data = _request("POST", "/books/v3/invoices", json=payload)
     return data.get("invoice") or {}
-*** End of File
