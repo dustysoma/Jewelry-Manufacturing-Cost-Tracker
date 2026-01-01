@@ -104,6 +104,9 @@
 
     <div style="margin-top:10px;">
       <div><label>Snapshot ID</label></div>
+      <div style="margin-top:6px;">
+        <input id="snapshotId" class="half" readonly placeholder="(click Snapshot Metals)" />
+      </div>
     </div>
   </div>
 
@@ -450,8 +453,10 @@
 
   async function snapshotMetals(){
     const r = await fetch(api('/api/metals/snapshot'), {method:'POST'});
+    if (!r.ok) return alert('Snapshot failed: ' + r.status);
     const snap = await r.json();
-    sel('snapshotId').value = snap.id;
+    const el = sel('snapshotId');
+    if (el) el.value = snap.id;
     await refreshSummary();
   }
 
