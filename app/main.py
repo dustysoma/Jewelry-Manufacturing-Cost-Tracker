@@ -8,6 +8,13 @@ from .db import init_db, get_session
 from .models import Order, Piece, LineItem, MetalPriceSnapshot, RateCard, Job
 from .settings import settings
 from .metal_prices import get_metals_per_gram, alloy_factor
+from .zoho import (
+    zoho_is_configured,
+    ensure_contact as ensure_zoho_contact,
+    create_invoice as create_zoho_invoice,
+    ZohoRequestError,
+    ZohoNotConfigured,
+)
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -41,10 +48,84 @@ def run_migrations(session: Session = Depends(get_session)):
         session.exec(text("ALTER TABLE piece ADD COLUMN IF NOT EXISTS image_data TEXT"))
         # Add image_data column to job table if it doesn't exist
         session.exec(text("ALTER TABLE job ADD COLUMN IF NOT EXISTS image_data TEXT"))
+        # Add Zoho linkage columns
+        session.exec(text("ALTER TABLE \"order\" ADD COLUMN IF NOT EXISTS zoho_contact_id VARCHAR(100)"))
+        session.exec(text("ALTER TABLE job ADD COLUMN IF NOT EXISTS zoho_invoice_id VARCHAR(100)"))
         session.commit()
         return {"ok": True, "message": "Migrations completed"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def sync_job_to_zoho(job: Job, session: Session):
+    """Ensure contact exists and create an invoice in Zoho Books for this job"""
+    if not zoho_is_configured():
+        logger.info("Zoho not configured; skipping sync for job %s", job.id)
+        return
+
+    try:
+        order = session.get(Order, job.order_id) if job.order_id else None
+        client_name = order.client_name if order else "Client"
+        contact_id = order.zoho_contact_id if order else None
+
+        if not contact_id:
+            contact_id = ensure_zoho_contact(client_name)
+            if contact_id and order:
+                order.zoho_contact_id = contact_id
+                session.add(order)
+                session.commit()
+
+        if not contact_id:
+            logger.warning("Zoho contact missing; skip invoice for job %s", job.id)
+            return
+
+        line_items = []
+        if job.piece_id:
+            items = session.exec(select(LineItem).where(LineItem.piece_id == job.piece_id)).all()
+            for li in items:
+                line_items.append({
+                    "item_name": li.name or "Line Item",
+                    "description": li.category or "",
+                    "rate": round(li.unit_cost or 0.0, 2),
+                    "quantity": li.qty or 1,
+                })
+        if job.metal_cost:
+            line_items.append({
+                "item_name": "Metal Cost",
+                "description": "Calculated metal cost",
+                "rate": round(job.metal_cost or 0.0, 2),
+                "quantity": 1,
+            })
+        if not line_items and job.total_cost:
+            line_items.append({
+                "item_name": "Job Total",
+                "description": "Jewelry job",
+                "rate": round(job.total_cost or 0.0, 2),
+                "quantity": 1,
+            })
+
+        if not line_items:
+            logger.warning("No line items to sync for job %s", job.id)
+            return
+
+        invoice = create_zoho_invoice(
+            contact_id=contact_id,
+            line_items=line_items,
+            reference_number=str(job.id),
+            notes=job.notes,
+        )
+        inv_id = invoice.get("invoice_id") if invoice else None
+        if inv_id:
+            job.zoho_invoice_id = inv_id
+            session.add(job)
+            session.commit()
+            logger.info("Zoho invoice %s created for job %s", inv_id, job.id)
+        else:
+            logger.warning("Zoho invoice creation returned no id for job %s", job.id)
+    except (ZohoRequestError, ZohoNotConfigured) as e:
+        logger.warning("Zoho sync skipped for job %s: %s", job.id, e)
+    except Exception:
+        logger.exception("Zoho sync failed for job %s", job.id)
 
 # ---------- Metals ----------
 @app.get("/api/metals/live")
@@ -322,7 +403,14 @@ def piece_summary(
 
 # ---------- Jobs (persisted) ----------
 @app.post("/api/jobs")
-def create_job(piece_id: int, snapshot_id: int | None = None, notes: str | None = None, external_invoice_id: str | None = None, session: Session = Depends(get_session)):
+def create_job(
+    piece_id: int,
+    snapshot_id: int | None = None,
+    notes: str | None = None,
+    external_invoice_id: str | None = None,
+    sync_to_zoho: bool = False,
+    session: Session = Depends(get_session),
+):
     piece = session.get(Piece, piece_id)
     if not piece:
         raise HTTPException(status_code=404, detail="piece not found")
@@ -358,6 +446,9 @@ def create_job(piece_id: int, snapshot_id: int | None = None, notes: str | None 
     session.add(job)
     session.commit()
     session.refresh(job)
+
+    if sync_to_zoho or settings.ZOHO_AUTO_SYNC_JOBS:
+        sync_job_to_zoho(job, session)
     return job
 
 
@@ -393,12 +484,35 @@ def jobs_with_orders(session: Session = Depends(get_session)):
             "line_items_total": job.line_items_total,
             "metal_cost": job.metal_cost,
             "piece_image_data": piece_image,
+            "zoho_invoice_id": job.zoho_invoice_id,
         })
     return result
 
 
+@app.get("/api/zoho/status")
+def zoho_status():
+    return {"configured": zoho_is_configured(), "auto_sync_jobs": settings.ZOHO_AUTO_SYNC_JOBS}
+
+
+@app.post("/api/zoho/sync-job/{job_id}")
+def zoho_sync_job(job_id: int, sync_type: str = "invoice", session: Session = Depends(get_session)):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    if sync_type == "invoice":
+        sync_job_to_zoho(job, session)
+        session.refresh(job)
+        return {"ok": True, "zoho_invoice_id": job.zoho_invoice_id}
+    elif sync_type == "expenses":
+        # Placeholder until expense sync is implemented (needs expense account config)
+        raise HTTPException(status_code=400, detail="Expense sync not configured yet")
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported sync type")
+
+
 @app.patch("/api/jobs/{job_id}")
-def update_job(job_id: int, notes: str | None = None, external_invoice_id: str | None = None, session: Session = Depends(get_session)):
+def update_job(job_id: int, notes: str | None = None, external_invoice_id: str | None = None, sync_to_zoho: bool = False, session: Session = Depends(get_session)):
     j = session.get(Job, job_id)
     if not j:
         raise HTTPException(status_code=404, detail="job not found")
@@ -422,6 +536,9 @@ def update_job(job_id: int, notes: str | None = None, external_invoice_id: str |
     session.add(j)
     session.commit()
     session.refresh(j)
+
+    if sync_to_zoho or settings.ZOHO_AUTO_SYNC_JOBS:
+        sync_job_to_zoho(j, session)
     return j
 
 

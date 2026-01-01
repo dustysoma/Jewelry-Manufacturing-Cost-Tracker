@@ -8,6 +8,7 @@ class Order(SQLModel, table=True):
     client_name: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     status: str = "intake"
+    zoho_contact_id: Optional[str] = None
 
 
 class Piece(SQLModel, table=True):
@@ -82,6 +83,7 @@ class Job(SQLModel, table=True):
     # optional notes or external invoice id
     notes: Optional[str] = None
     external_invoice_id: Optional[str] = None
+    zoho_invoice_id: Optional[str] = None
 
     # snapshot of piece image at time of job save
     image_data: Optional[str] = None

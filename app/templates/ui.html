@@ -409,6 +409,7 @@
       for (const job of clientJobs){
         const date = new Date(job.created_at).toLocaleDateString();
         const thumb = job.piece_image_data ? `<img src="${job.piece_image_data}" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #ddd; margin-right:10px;">` : '';
+        const zohoStatus = job.zoho_invoice_id ? `Synced #${job.zoho_invoice_id}` : 'Not synced';
         html += `
           <div onclick="viewJob(${job.id})" style="padding:8px; margin:4px 0; border:1px solid #eee; border-radius:6px; background:#fafafa; cursor:pointer;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -417,11 +418,14 @@
                 <div>
                   <strong>${job.piece_name}</strong> — $${job.total_cost.toFixed(2)} on ${date}
                   <div style="font-size:12px; opacity:0.7; margin-top:4px;">${job.notes || '(no notes)'}</div>
+                  <div style="font-size:12px; opacity:0.7; margin-top:4px;">Zoho: ${zohoStatus}</div>
                 </div>
               </div>
               <div style="font-size:12px; text-align:right;">
                 ID: ${job.id}
-                <div style="margin-top:6px;">
+                <div style="margin-top:6px; display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+                  <button onclick="event.stopPropagation(); syncJobToZoho(${job.id}, 'invoice')" style="padding:4px 8px; font-size:12px; background:#2b7de9; color:white; border:none; border-radius:4px; cursor:pointer;">Sync Invoice</button>
+                  <button onclick="event.stopPropagation(); syncJobToZoho(${job.id}, 'expenses')" style="padding:4px 8px; font-size:12px; background:#6a4dd6; color:white; border:none; border-radius:4px; cursor:pointer;">Sync Expenses</button>
                   <button onclick="event.stopPropagation(); deleteJob(${job.id})" style="padding:4px 8px; font-size:12px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
                 </div>
               </div>
@@ -482,6 +486,22 @@
   }
 
   const api = (path) => location.origin + path;
+
+  async function syncJobToZoho(jobId, syncType='invoice'){
+    try {
+      const r = await fetch(api(`/api/zoho/sync-job/${jobId}?sync_type=${encodeURIComponent(syncType)}`), { method:'POST' });
+      const data = await r.json();
+      if (!r.ok) return alert(`Zoho sync failed: ${data.detail || r.status}`);
+      if (syncType === 'invoice') {
+        alert(`Zoho invoice sync ${data.zoho_invoice_id ? 'created #' + data.zoho_invoice_id : 'completed'}`);
+      } else {
+        alert('Expense sync not configured yet.');
+      }
+      await loadJobsIndex();
+    } catch (e){
+      alert('Zoho sync error: ' + e);
+    }
+  }
 
   function sel(id){ return document.getElementById(id); }
   function currentOrderId(){ return parseInt(sel('orderSelect').value || '0'); }
