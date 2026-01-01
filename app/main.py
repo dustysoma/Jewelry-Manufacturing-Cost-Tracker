@@ -1,17 +1,28 @@
 from datetime import datetime, time as dtime, timedelta
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import Session, select
+import logging
 
 from .db import init_db, get_session
 from .models import Order, Piece, LineItem, MetalPriceSnapshot, RateCard, Job
 from .settings import settings
 from .metal_prices import get_metals_per_gram, alloy_factor
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Jewelry Manufacturing Tracker")
+
 
 @app.on_event("startup")
 def _startup():
-    init_db()
+    try:
+        logger.debug("Running init_db() on startup")
+        init_db()
+        logger.debug("Database initialized successfully")
+    except Exception:
+        logger.exception("Unhandled exception during startup init_db()")
+        raise
 
 @app.get("/")
 def home():
