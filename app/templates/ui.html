@@ -18,15 +18,15 @@
   </style>
 </head>
 <body>
-  <h2 style="margin:0 0 12px;">Jewelry Manufacturing</h2>
-
-  <div style="margin-bottom:12px;">
-    <button style="margin-right:8px; width:auto; padding:8px 16px;" onclick="showSection('editor')">Editor</button>
-    <button style="margin-right:8px; width:auto; padding:8px 16px;" onclick="loadRateCardsSection()">Rate Cards</button>
-    <button style="width:auto; padding:8px 16px;" onclick="loadJobsIndex()">Saved Jobs</button>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+    <h2 style="margin:0;">Jewelry Manufacturing</h2>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <button style="width:auto; padding:8px 16px;" onclick="loadRateCardsSection()">Rate Cards</button>
+      <button style="width:auto; padding:8px 16px;" onclick="showSection('editor'); ensureEditorLoaded();">New Job</button>
+    </div>
   </div>
 
-  <div id="editorSection" style="display:block;">
+  <div id="editorSection" style="display:none;">
   <div class="card" style="margin-bottom:12px;">
     <h3 style="margin:0 0 8px;">Piece Image</h3>
     <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
@@ -318,6 +318,12 @@
     if (section === 'editor' && editor) editor.style.display = 'block';
     else if (section === 'jobs' && jobs) jobs.style.display = 'block';
     else if (section === 'ratecards' && ratecards) ratecards.style.display = 'block';
+  }
+
+  async function ensureEditorLoaded(){
+    // Load orders/pieces/rate cards when opening editor
+    await loadOrders();
+    await loadRateCards();
   }
 
   async function loadRateCardsSection(){
@@ -810,10 +816,9 @@ sel('rateCardSelect').addEventListener('change', updateRateCardPricePreview);
 sel('rateQty').addEventListener('input', updateRateCardPricePreview);
 sel('overrideUnitPrice').addEventListener('input', updateRateCardPricePreview);
 
-  // init
+  // init: default to Saved Jobs as home
   (async function(){
-    await loadOrders();
-    await loadRateCards();
+    await loadJobsIndex();
   })();
 </script>
 
