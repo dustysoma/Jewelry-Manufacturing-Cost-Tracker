@@ -149,6 +149,20 @@ def get_piece(piece_id: int, session: Session = Depends(get_session)):
     return piece or {"error": "piece not found"}
 
 
+@app.post("/api/pieces/{piece_id}/image")
+def upload_piece_image(piece_id: int, image_data: str, session: Session = Depends(get_session)):
+    """Upload base64 image for a piece"""
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(status_code=404, detail="piece not found")
+    
+    piece.image_data = image_data
+    session.add(piece)
+    session.commit()
+    session.refresh(piece)
+    return piece
+
+
 
 # ---------- Rate Cards ----------
 @app.post("/api/rate-cards")

@@ -22,6 +22,9 @@ class Piece(SQLModel, table=True):
     finished_weight_g: Optional[float] = None
     loss_pct: float = 0.0                # 0.07 = 7% loss/overpour
 
+    # Image
+    image_data: Optional[str] = None     # base64 encoded image
+
     # Printing SLA
     files_sent_at: Optional[datetime] = None
     expected_print_delivery_at: Optional[datetime] = None
