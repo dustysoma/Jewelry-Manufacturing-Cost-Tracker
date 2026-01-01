@@ -82,3 +82,6 @@ class Job(SQLModel, table=True):
     # optional notes or external invoice id
     notes: Optional[str] = None
     external_invoice_id: Optional[str] = None
+
+    # snapshot of piece image at time of job save
+    image_data: Optional[str] = None

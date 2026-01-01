@@ -39,6 +39,8 @@ def run_migrations(session: Session = Depends(get_session)):
     try:
         # Add image_data column to piece table if it doesn't exist
         session.exec(text("ALTER TABLE piece ADD COLUMN IF NOT EXISTS image_data TEXT"))
+        # Add image_data column to job table if it doesn't exist
+        session.exec(text("ALTER TABLE job ADD COLUMN IF NOT EXISTS image_data TEXT"))
         session.commit()
         return {"ok": True, "message": "Migrations completed"}
     except Exception as e:
@@ -162,11 +164,15 @@ def get_piece(piece_id: int, session: Session = Depends(get_session)):
 
 
 @app.post("/api/pieces/{piece_id}/image")
-def upload_piece_image(piece_id: int, image_data: str = Body(...), session: Session = Depends(get_session)):
+def upload_piece_image(piece_id: int, body: dict = Body(...), session: Session = Depends(get_session)):
     """Upload base64 image for a piece"""
     piece = session.get(Piece, piece_id)
     if not piece:
         raise HTTPException(status_code=404, detail="piece not found")
+    
+    image_data = body.get("image_data")
+    if not image_data:
+        raise HTTPException(status_code=400, detail="image_data required")
     
     piece.image_data = image_data
     session.add(piece)
@@ -339,7 +345,16 @@ def create_job(piece_id: int, snapshot_id: int | None = None, notes: str | None 
     total_cost = items_total + metal_cost
 
     from .models import Job
-    job = Job(order_id=piece.order_id, piece_id=piece.id, line_items_total=items_total, metal_cost=metal_cost, total_cost=total_cost, notes=notes, external_invoice_id=external_invoice_id)
+        job = Job(
+        order_id=piece.order_id,
+        piece_id=piece.id,
+        line_items_total=items_total,
+        metal_cost=metal_cost,
+        total_cost=total_cost,
+        notes=notes,
+        external_invoice_id=external_invoice_id,
+        image_data=piece.image_data,
+    )
     session.add(job)
     session.commit()
     session.refresh(job)
@@ -367,6 +382,7 @@ def jobs_with_orders(session: Session = Depends(get_session)):
     for job in jobs:
         order = session.get(Order, job.order_id) if job.order_id else None
         piece = session.get(Piece, job.piece_id) if job.piece_id else None
+        piece_image = piece.image_data if piece and piece.image_data else job.image_data
         result.append({
             "id": job.id,
             "client_name": order.client_name if order else "(unknown)",
@@ -376,7 +392,7 @@ def jobs_with_orders(session: Session = Depends(get_session)):
             "notes": job.notes,
             "line_items_total": job.line_items_total,
             "metal_cost": job.metal_cost,
-            "piece_image_data": piece.image_data if piece else None,
+            "piece_image_data": piece_image,
         })
     return result
 

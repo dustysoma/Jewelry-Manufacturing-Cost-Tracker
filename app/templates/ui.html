@@ -661,6 +661,9 @@
     const snap = sel('snapshotId').value || '';
     const notes = jobNotes();
 
+    // Upload image first if one is selected
+    await uploadPieceImage();
+
     if (currentJobId) {
       // Update existing job
       const params = new URLSearchParams();
