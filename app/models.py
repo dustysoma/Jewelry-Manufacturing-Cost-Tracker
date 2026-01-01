@@ -61,3 +61,21 @@ class MetalPriceSnapshot(SQLModel, table=True):
     gold_per_g: float
     silver_per_g: float
     platinum_per_g: float
+
+
+class Job(SQLModel, table=True):
+    """Saved job record for invoices/expense tracking"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    order_id: Optional[int] = Field(default=None, foreign_key="order.id")
+    piece_id: Optional[int] = Field(default=None, foreign_key="piece.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    finalized_at: Optional[datetime] = None
+
+    # totals captured at time of save
+    line_items_total: float = 0.0
+    metal_cost: float = 0.0
+    total_cost: float = 0.0
+
+    # optional notes or external invoice id
+    notes: Optional[str] = None
+    external_invoice_id: Optional[str] = None
