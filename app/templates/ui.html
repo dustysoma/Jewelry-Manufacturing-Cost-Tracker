@@ -65,45 +65,50 @@
 
   <div class="card">
     <h3 style="margin:0 0 10px;">3) Specs + Metal Pricing</h3>
-    <div class="row">
-      <div class="half">
-        <label>Metal</label>
-        <select id="metal">
-          <option value="">(select)</option>
-          <option>GOLD</option>
-          <option>SILVER</option>
-          <option>PLATINUM</option>
-        </select>
+
+    <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+      <div style="flex:1; min-width:320px;">
+        <div class="row">
+          <div class="half">
+            <label>Metal</label>
+            <select id="metal">
+              <option value="">(select)</option>
+              <option>GOLD</option>
+              <option>SILVER</option>
+              <option>PLATINUM</option>
+            </select>
+          </div>
+          <div class="half">
+            <label>Alloy</label>
+            <select id="alloy">
+              <option value="">(select)</option>
+              <option>10K</option><option>14K</option><option>18K</option>
+              <option>925</option>
+              <option>PT950</option>
+            </select>
+          </div>
+          <div class="half">
+            <label>Finished weight (g)</label>
+            <input id="weight" type="number" step="0.01" placeholder="e.g. 8.50">
+          </div>
+          <div class="half">
+            <label>Loss % (e.g. 7 for 7%)</label>
+            <input id="loss" type="number" step="0.1" placeholder="e.g. 7">
+          </div>
+          <div class="half">
+            <label>Premium per g (your shop)</label>
+            <input id="premium" type="number" step="0.01" placeholder="e.g. 1.50">
+          </div>
+        </div>
       </div>
-      <div class="half">
-        <label>Alloy</label>
-        <select id="alloy">
-          <option value="">(select)</option>
-          <option>10K</option><option>14K</option><option>18K</option>
-          <option>925</option>
-          <option>PT950</option>
-        </select>
-      </div>
-      <div class="half">
-        <label>Finished weight (g)</label>
-        <input id="weight" type="number" step="0.01" placeholder="e.g. 8.50">
-      </div>
-      <div class="half">
-        <label>Loss % (e.g. 7 for 7%)</label>
-        <input id="loss" type="number" step="0.1" placeholder="e.g. 7">
-      </div>
-      <div class="half">
-        <label>Premium per g (your shop)</label>
-        <input id="premium" type="number" step="0.01" placeholder="e.g. 1.50">
-      </div>
-      <div class="half">
+
+      <div style="width:260px; max-width:100%;">
         <label>Piece Image (optional)</label>
-        <input id="imageInput" type="file" accept="image/*" onchange="previewImage()">
+        <input id="imageInput" type="file" accept="image/*" onchange="previewImage()" style="margin-top:6px;">
+        <div id="imagePreview" style="margin-top:10px; display:none; text-align:right;">
+          <img id="previewImg" style="max-width:240px; max-height:240px; border-radius:8px; border:1px solid #ddd;">
+        </div>
       </div>
-    </div>
-    
-    <div id="imagePreview" style="margin-top:12px; display:none;">
-      <img id="previewImg" style="max-width:300px; max-height:300px; border-radius:8px; border:1px solid #ddd;">
     </div>
 
     <div class="row" style="margin-top:10px;">
