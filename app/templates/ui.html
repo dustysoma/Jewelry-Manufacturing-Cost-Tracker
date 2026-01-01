@@ -21,6 +21,7 @@
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Jewelry Manufacturing</h2>
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <button style="width:auto; padding:8px 16px;" onclick="loadJobsIndex()">Saved Jobs</button>
       <button style="width:auto; padding:8px 16px;" onclick="loadRateCardsSection()">Rate Cards</button>
       <button style="width:auto; padding:8px 16px;" onclick="showSection('editor'); ensureEditorLoaded();">New Job</button>
     </div>
@@ -598,19 +599,27 @@
     const input = sel('imageInput');
     const file = input.files[0];
     if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target.result;
-      const r = await fetch(api(`/api/pieces/${pid}/image`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_data: base64 })
-      });
-      if (!r.ok) return alert('Error uploading image: ' + r.status);
-      await r.json();
-    };
-    reader.readAsDataURL(file);
+
+    await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64 = e.target.result;
+          const r = await fetch(api(`/api/pieces/${pid}/image`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_data: base64 })
+          });
+          if (!r.ok) return reject('Error uploading image: ' + r.status);
+          await r.json();
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject('Failed to read file');
+      reader.readAsDataURL(file);
+    });
   }
 
   async function savePiece(){
