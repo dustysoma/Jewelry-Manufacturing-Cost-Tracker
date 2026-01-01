@@ -1,5 +1,5 @@
 from datetime import datetime, time as dtime, timedelta
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from sqlmodel import Session, select
 from sqlalchemy import text
 import logging
@@ -162,7 +162,7 @@ def get_piece(piece_id: int, session: Session = Depends(get_session)):
 
 
 @app.post("/api/pieces/{piece_id}/image")
-def upload_piece_image(piece_id: int, image_data: str, session: Session = Depends(get_session)):
+def upload_piece_image(piece_id: int, image_data: str = Body(...), session: Session = Depends(get_session)):
     """Upload base64 image for a piece"""
     piece = session.get(Piece, piece_id)
     if not piece:

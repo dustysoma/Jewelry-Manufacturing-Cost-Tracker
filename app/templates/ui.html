@@ -596,8 +596,11 @@
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64 = e.target.result;
-      const params = new URLSearchParams({ image_data: base64 });
-      const r = await fetch(api(`/api/pieces/${pid}/image?` + params.toString()), { method: 'POST' });
+      const r = await fetch(api(`/api/pieces/${pid}/image`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data: base64 })
+      });
       if (!r.ok) return alert('Error uploading image: ' + r.status);
       await r.json();
     };
