@@ -345,7 +345,7 @@ def create_job(piece_id: int, snapshot_id: int | None = None, notes: str | None 
     total_cost = items_total + metal_cost
 
     from .models import Job
-        job = Job(
+    job = Job(
         order_id=piece.order_id,
         piece_id=piece.id,
         line_items_total=items_total,
