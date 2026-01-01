@@ -32,7 +32,7 @@ def home():
 def health():
     return {"ok": True}
 
-@app.post("/api/migrate")
+@app.get("/api/migrate")
 def run_migrations(session: Session = Depends(get_session)):
     """Run database migrations - adds missing columns"""
     try:
