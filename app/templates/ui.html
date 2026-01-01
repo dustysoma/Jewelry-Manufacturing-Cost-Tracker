@@ -22,6 +22,7 @@
 
   <div style="margin-bottom:12px;">
     <button style="margin-right:8px; width:auto; padding:8px 16px;" onclick="showSection('editor')">Editor</button>
+    <button style="margin-right:8px; width:auto; padding:8px 16px;" onclick="loadRateCardsSection()">Rate Cards</button>
     <button style="width:auto; padding:8px 16px;" onclick="loadJobsIndex()">Saved Jobs</button>
   </div>
 
@@ -110,44 +111,7 @@
     </div>
   </div>
 
-  <div class="card">
-    <h3 style="margin:0 0 10px;">3b) Manage Rate Cards</h3>
-    <div style="margin-bottom:12px; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
-      <h4 style="margin:0 0 10px;">Create New Rate Card</h4>
-      <div class="row">
-        <div class="half">
-          <label>Category</label>
-          <select id="newRateCat">
-            <option>SETTING</option>
-            <option>STONE</option>
-            <option>POLISH</option>
-            <option>PLATING</option>
-            <option>ENGRAVING</option>
-            <option>ENAMEL</option>
-            <option>INLAY</option>
-            <option>CAD</option>
-            <option>PRINT</option>
-            <option>MISC</option>
-          </select>
-        </div>
-        <div class="half">
-          <label>Name (e.g. Prong Setting, Rhodium Plating)</label>
-          <input id="newRateName" placeholder="Descriptive name">
-        </div>
-        <div class="half">
-          <label>Unit Type (stone, job, piece, gram, hour, etc.)</label>
-          <input id="newRateUnit" placeholder="e.g. stone, job, piece">
-        </div>
-        <div class="half">
-          <label>Unit Cost ($)</label>
-          <input id="newRateCost" type="number" step="0.01" placeholder="e.g. 15.50">
-        </div>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <button onclick="createRateCard()">Add Rate Card</button>
-      </div>
-    </div>
-  </div>
+
 
   <div class="card">
     <h3 style="margin:0 0 10px;">4) Add Costs (Rate Cards)</h3>
@@ -272,9 +236,55 @@
     </div>
   </div><!-- end jobsSection -->
 
+  <div id="rateCardsSection" style="display:none;">
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Manage Rate Cards</h3>
+      
+      <div style="margin-bottom:20px; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
+        <h4 style="margin:0 0 10px;">Create New Rate Card</h4>
+        <div class="row">
+          <div class="half">
+            <label>Category</label>
+            <select id="newRateCat">
+              <option>SETTING</option>
+              <option>STONE</option>
+              <option>POLISH</option>
+              <option>PLATING</option>
+              <option>ENGRAVING</option>
+              <option>ENAMEL</option>
+              <option>INLAY</option>
+              <option>CAD</option>
+              <option>PRINT</option>
+              <option>MISC</option>
+            </select>
+          </div>
+          <div class="half">
+            <label>Name (e.g. Prong Setting, Rhodium Plating)</label>
+            <input id="newRateName" placeholder="Descriptive name">
+          </div>
+          <div class="half">
+            <label>Unit Type (stone, job, piece, gram, hour, etc.)</label>
+            <input id="newRateUnit" placeholder="e.g. stone, job, piece">
+          </div>
+          <div class="half">
+            <label>Unit Cost ($)</label>
+            <input id="newRateCost" type="number" step="0.01" placeholder="e.g. 15.50">
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button onclick="createRateCard()">Add Rate Card</button>
+        </div>
+      </div>
+
+      <h4 style="margin:12px 0 10px;">Existing Rate Cards</h4>
+      <div id="rateCardsList" style="margin-top:12px;">Loading...</div>
+    </div>
+  </div><!-- end rateCardsSection -->
+
 
 <script>
   let rateCardsCache = [];
+  let currentJobId = null;  // Track currently loaded job for edit vs create
   
   // Save job UI helpers
   function jobNotes(){ const el = sel('jobNotes'); return el ? el.value.trim() : ''; }
@@ -282,13 +292,48 @@
   function showSection(section){
     const editor = sel('editorSection');
     const jobs = sel('jobsSection');
-    if (section === 'editor'){
-      if (editor) editor.style.display = 'block';
-      if (jobs) jobs.style.display = 'none';
-    } else if (section === 'jobs'){
-      if (editor) editor.style.display = 'none';
-      if (jobs) jobs.style.display = 'block';
+    const ratecards = sel('rateCardsSection');
+    
+    if (editor) editor.style.display = 'none';
+    if (jobs) jobs.style.display = 'none';
+    if (ratecards) ratecards.style.display = 'none';
+    
+    if (section === 'editor' && editor) editor.style.display = 'block';
+    else if (section === 'jobs' && jobs) jobs.style.display = 'block';
+    else if (section === 'ratecards' && ratecards) ratecards.style.display = 'block';
+  }
+
+  async function loadRateCardsSection(){
+    showSection('ratecards');
+    const r = await fetch(api('/api/rate-cards'));
+    const cards = await r.json();
+
+    // Group by category
+    const byCategory = {};
+    for (const card of cards){
+      if (!byCategory[card.category]) byCategory[card.category] = [];
+      byCategory[card.category].push(card);
     }
+
+    // Render
+    let html = '';
+    for (const cat of Object.keys(byCategory).sort()){
+      const catCards = byCategory[cat];
+      html += `<h4 style="margin:12px 0 8px; font-weight:600;">${cat}</h4>`;
+      for (const card of catCards){
+        html += `
+          <div style="padding:8px; margin:4px 0; border:1px solid #eee; border-radius:6px; background:#fafafa; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong>${card.name}</strong> — $${card.unit_cost.toFixed(2)} / ${card.unit_type}
+              <div style="font-size:12px; opacity:0.7; margin-top:2px;">ID: ${card.id} ${card.active ? '' : '(inactive)'}</div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const listEl = sel('rateCardsList');
+    if (listEl) listEl.innerHTML = html || '(no rate cards)';
   }
 
   async function loadJobsIndex(){
@@ -338,6 +383,9 @@
     const r = await fetch(api(`/api/jobs/${jobId}`));
     if (!r.ok) return alert('Failed to load job: ' + r.status);
     const job = await r.json();
+
+    // Track that we're editing this job
+    currentJobId = jobId;
 
     // Ensure orders and pieces are loaded so selects contain options
     await loadOrders();
@@ -394,6 +442,7 @@
     const r = await fetch(api('/api/orders?client_name=' + encodeURIComponent(name)), {method:'POST'});
     await r.json();
     sel('newOrderName').value = '';
+    currentJobId = null;  // Clear job context when creating new order
     await loadOrders();
   }
 
@@ -413,6 +462,12 @@
     await r.json();
     sel('newRateName').value = ''; sel('newRateUnit').value=''; sel('newRateCost').value='';
     await loadRateCards();
+    
+    // Refresh the rate cards section list if we're viewing it
+    const rateCardsSection = sel('rateCardsSection');
+    if (rateCardsSection && rateCardsSection.style.display !== 'none') {
+      await loadRateCardsSection();
+    }
   }
 
   async function loadPieces(){
@@ -461,6 +516,7 @@
     const r = await fetch(api(`/api/orders/${oid}/pieces?name=` + encodeURIComponent(name)), {method:'POST'});
     await r.json();
     sel('newPieceName').value = '';
+    currentJobId = null;  // Clear job context when creating new piece
     await loadPieces();
   }
 
@@ -512,14 +568,26 @@
     const snap = sel('snapshotId').value || '';
     const notes = jobNotes();
 
-    const params = new URLSearchParams({ piece_id: pid.toString() });
-    if (snap) params.set('snapshot_id', snap);
-    if (notes) params.set('notes', notes);
+    if (currentJobId) {
+      // Update existing job
+      const params = new URLSearchParams();
+      if (notes) params.set('notes', notes);
+      const r = await fetch(api(`/api/jobs/${currentJobId}?` + params.toString()), { method: 'PATCH' });
+      if (!r.ok) return alert('Error updating job: ' + r.status);
+      const job = await r.json();
+      alert('Job updated (id ' + job.id + ')');
+    } else {
+      // Create new job
+      const params = new URLSearchParams({ piece_id: pid.toString() });
+      if (snap) params.set('snapshot_id', snap);
+      if (notes) params.set('notes', notes);
 
-    const r = await fetch(api('/api/jobs?' + params.toString()), { method: 'POST' });
-    if (!r.ok) return alert('Error saving job: ' + r.status);
-    const job = await r.json();
-    alert('Job saved (id ' + job.id + ')');
+      const r = await fetch(api('/api/jobs?' + params.toString()), { method: 'POST' });
+      if (!r.ok) return alert('Error saving job: ' + r.status);
+      const job = await r.json();
+      currentJobId = job.id;  // Track the newly created job
+      alert('Job saved (id ' + job.id + ')');
+    }
   }
 
   async function loadRateCards(){
