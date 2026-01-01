@@ -354,6 +354,16 @@ def jobs_with_orders(session: Session = Depends(get_session)):
     return result
 
 
+@app.delete("/api/jobs/{job_id}")
+def delete_job(job_id: int, session: Session = Depends(get_session)):
+    j = session.get(Job, job_id)
+    if not j:
+        raise HTTPException(status_code=404, detail="job not found")
+    session.delete(j)
+    session.commit()
+    return {"ok": True}
+
+
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Request

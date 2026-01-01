@@ -311,7 +311,7 @@
       for (const job of clientJobs){
         const date = new Date(job.created_at).toLocaleDateString();
         html += `
-          <div style="padding:8px; margin:4px 0; border:1px solid #eee; border-radius:6px; background:#fafafa;">
+          <div onclick="viewJob(${job.id})" style="padding:8px; margin:4px 0; border:1px solid #eee; border-radius:6px; background:#fafafa; cursor:pointer;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
                 <strong>${job.piece_name}</strong> — $${job.total_cost.toFixed(2)} on ${date}
@@ -319,6 +319,9 @@
               </div>
               <div style="font-size:12px; text-align:right;">
                 ID: ${job.id}
+                <div style="margin-top:6px;">
+                  <button onclick="event.stopPropagation(); deleteJob(${job.id})" style="padding:4px 8px; font-size:12px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                </div>
               </div>
             </div>
           </div>
@@ -328,6 +331,49 @@
 
     const jobsEl = sel('jobsIndex');
     if (jobsEl) jobsEl.innerHTML = html || '(no saved jobs)';
+  }
+
+  // Load a saved job into the editor for viewing/editing
+  async function viewJob(jobId){
+    const r = await fetch(api(`/api/jobs/${jobId}`));
+    if (!r.ok) return alert('Failed to load job: ' + r.status);
+    const job = await r.json();
+
+    // Ensure orders and pieces are loaded so selects contain options
+    await loadOrders();
+    if (job.order_id && sel('orderSelect')){
+      const orderSelect = sel('orderSelect');
+      if (![...orderSelect.options].some(o => o.value == String(job.order_id))){
+        orderSelect.insertAdjacentHTML('afterbegin', `<option value="${job.order_id}">#${job.order_id} — (unknown)</option>`);
+      }
+      orderSelect.value = job.order_id;
+      await loadPieces();
+    }
+
+    if (job.piece_id && sel('pieceSelect')){
+      const pieceSelect = sel('pieceSelect');
+      if (![...pieceSelect.options].some(o => o.value == String(job.piece_id))){
+        pieceSelect.insertAdjacentHTML('afterbegin', `<option value="${job.piece_id}">#${job.piece_id} — (unknown)</option>`);
+      }
+      pieceSelect.value = job.piece_id;
+      await loadPieceIntoForm();
+    }
+
+    // Populate notes and switch to editor view
+    if (sel('jobNotes')) sel('jobNotes').value = job.notes || '';
+    showSection('editor');
+
+    // Refresh lists and summary to reflect the loaded job
+    await refreshLineItemsList();
+    await refreshSummary();
+  }
+
+  async function deleteJob(jobId){
+    if (!confirm('Delete this saved job?')) return;
+    const r = await fetch(api(`/api/jobs/${jobId}`), { method: 'DELETE' });
+    if (!r.ok) return alert('Failed to delete job: ' + r.status);
+    await loadJobsIndex();
+    alert('Job deleted');
   }
 
   const api = (path) => location.origin + path;
