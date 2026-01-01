@@ -376,6 +376,7 @@ def jobs_with_orders(session: Session = Depends(get_session)):
             "notes": job.notes,
             "line_items_total": job.line_items_total,
             "metal_cost": job.metal_cost,
+            "piece_image_data": piece.image_data if piece else None,
         })
     return result
 
